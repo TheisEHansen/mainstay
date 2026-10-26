@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="Icon.png" alt="MainStay Logo" width="128" height="128" />
-
 # MainStay
 
 **Keep your local repositories anchored to main.**
