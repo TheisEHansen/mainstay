@@ -1,130 +1,75 @@
-<div align="center">
-
 # MainStay
 
-**Keep your local repositories anchored to main.**
-
-A high-performance, safe Windows desktop utility to batch-update and align all your local Git repositories in parallel.
-
-[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Platform Windows](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](https://microsoft.com/windows)
-[![Tests Passing](https://img.shields.io/badge/Tests-17%20Passed-2ea44f?logo=github-actions&logoColor=white)](#tests)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
-</div>
+A small Windows desktop tool to pull the latest `main` across a folder of Git repositories.
 
 ---
 
-## 💡 Why MainStay?
+## Why?
 
-If you work on dozens of active repositories—across microservices, client libraries, client projects, or open-source forks—keeping your local `main` branches up to date is tedious and time-consuming.
+If you maintain or contribute to multiple projects, keeping all your local default branches in sync with origin is repetitive. Doing it by hand takes time, and simple shell scripts tend to choke if you have unstaged changes, an active feature branch, or a detached HEAD.
 
-Doing this by hand or running blunt bash scripts often leads to:
-- Dirty working tree errors or merge conflicts.
-- Lost work when switching branches without stashing.
-- Getting left on the wrong branch or stranded in a detached `HEAD`.
-- Stalled networks or CPU spikes from unthrottled concurrent pulls.
+MainStay is a lightweight app that scans a folder for Git repositories and updates them in parallel while keeping your local working state intact.
 
-**MainStay solves this.** It scans your development folder, detects all Git repositories, and runs safe, parallel updates against the primary branch (`main`, `master`, or your custom default)—all wrapped in a clean, modern desktop GUI.
+## How it works
 
----
+When you run MainStay against a folder, it:
 
-## ✨ Features
+1. **Finds local repos** and fetches remote references from `origin`.
+2. **Checks if updates are needed.** If your default branch is already up to date with the remote, it moves on without touching your working tree.
+3. **Safely updates if there are new commits:**
+   - Stashes any uncommitted changes.
+   - Switches to your main branch (e.g. `main` or `master`).
+   - Fast-forwards to the latest commit.
+   - Switches back to whatever branch you were on before.
+   - Restores your stashed changes.
+4. **Reports errors cleanly.** If a repository cannot fast-forward cleanly or encounters a conflict, MainStay flags the error in the UI rather than guessing or making destructive changes.
 
-- ⚡ **Throttled Concurrency** — Batch-process hundreds of repositories in parallel with configurable worker limits (default: 10 parallel workers) to prevent network and I/O congestion.
-- 🛡️ **Zero Work Loss Guarantee** — Any uncommitted changes are safely stashed and restored. MainStay remembers your original branch (or detached commit) and puts everything back exactly how it was found.
-- ⏭️ **Intelligent Skip** — Fetches remote references first. If your local `main` is already up to date, it skips unnecessary branch checkouts and stash cycles entirely.
-- 🎯 **Configurable Main Resolution** — Resolves branches dynamically (e.g. `main, master`) prioritizing remote defaults.
-- 📌 **"Stay on Main" Option** — Toggle whether to restore your prior working branch or stay checked out on `main` after pulling.
-- 📊 **Real-Time Audit Grid** — Inspect exact commit changes (`FromCommit` ➜ `ToCommit`), commit counts, duration, stashing status, and clear error diagnostics.
-- 💾 **Export Results** — Export full run logs to **CSV** or **JSON** for team tracking, reporting, or automation scripts.
+## What it does
 
----
+- **Parallel updates:** Runs checks concurrently with an adjustable worker limit so your network and disk aren't overwhelmed.
+- **Leaves your working branch alone:** Stashes changes and returns you to your active branch when finished (or toggle **Stay on main** if you prefer).
+- **Flexible branch names:** Defaults to checking for `main` and `master`, but you can customize the list and priority order.
+- **Clear status view:** Shows which repositories updated, commit diffs (`from` -> `to`), durations, and detailed error messages if an operation failed.
+- **Exporting:** Option to save run results as CSV or JSON if you want to inspect them later.
 
-## 🔒 Safety & Lifecycle Workflow
+## Requirements
 
-MainStay follows a defensive, non-destructive workflow for every repository:
+- Windows 10 or 11
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/download)
+- [Git](https://git-scm.com/) installed and available in your `PATH`
 
-```
-[Scan Folder] ➜ [Detect Git Repo] ➜ [Fetch origin]
-                                          │
-                   ┌──────────────────────┴──────────────────────┐
-                   ▼                                             ▼
-          Already Up to Date                             New Commits Found
-                   │                                             │
-      (Skip checkout/stash cycle)                 1. Stash uncommitted changes
-                   │                              2. Checkout main branch
-                   │                              3. Fast-forward pull
-                   │                              4. Restore original branch / commit
-                   │                              5. Pop stash safely
-                   └──────────────────────┬──────────────────────┘
-                                          ▼
-                               [Report Status & Timing]
+## Running from source
+
+Clone the repository and run the project:
+
+```bash
+git clone https://github.com/TheisEHansen/mainstay.git
+cd mainstay
+dotnet run --project MainStay
 ```
 
-If a merge conflict, dirty pop, or network failure occurs at any stage, MainStay captures the exact error details without corrupting your repository state.
+You can also open `MainStay.slnx` in Visual Studio or JetBrains Rider.
 
----
+## Configuration
 
-## 🚀 Getting Started
+All options can be configured directly in the app:
 
-### Prerequisites
-
-- [Windows 10 / 11](https://www.microsoft.com/windows)
-- [.NET 10.0 SDK](https://dotnet.microsoft.com/download) or higher
-- [Git](https://git-scm.com/) installed and available in your system `PATH`
-
-### Installation & Running
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-username/mainstay.git
-   cd mainstay
-   ```
-
-2. **Build and run:**
-   ```bash
-   dotnet run --project MainStay/MainStay.csproj
-   ```
-
-Alternatively, open `MainStay.slnx` in Visual Studio 2026, JetBrains Rider, or VS Code with C# Dev Kit.
-
----
-
-## ⚙️ Configuration
-
-| Option | Default | Description |
+| Setting | Default | Description |
 |---|---|---|
-| **Root folder** | Current Directory | The parent folder to recursively scan for Git repositories. |
-| **Main branch names** | `main, master` | Comma-separated list of branch names to target, evaluated in priority order. |
-| **Parallel repositories** | `10` | Maximum number of repositories to update concurrently (1 – 64). |
-| **Git timeout** | `120s` | Maximum time allowed per repository operation before timeout. |
-| **Stay on main** | `false` | When enabled, leaves each repository checked out on `main` instead of restoring the original branch. |
+| **Root folder** | Current directory | The directory to scan recursively for Git repositories. |
+| **Main branch names** | `main, master` | Comma-separated list of target branch names, checked in order of priority. |
+| **Parallel repositories** | `10` | Number of repositories to process concurrently. |
+| **Git timeout** | `120s` | Maximum time allowed per repository operation before aborting. |
+| **Stay on main** | Unchecked | If checked, keeps repositories on the default branch instead of switching back to your previous branch. |
 
----
+## Running tests
 
-## 🧪 Tests
-
-MainStay includes a comprehensive suite of unit and integration tests using [xUnit v3](https://xunit.net/) and [FluentAssertions](https://fluentAssertions.com/), testing against isolated Git sandbox repositories:
+The test suite runs against temporary, isolated Git repositories created during the test run:
 
 ```bash
 dotnet test
 ```
 
----
+## License
 
-## 🤝 Contributing
-
-Contributions, bug reports, and feature requests are welcome!
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m "Add amazing feature"`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
+This project is available under the [MIT License](LICENSE).
